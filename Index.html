@@ -1,0 +1,1173 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>시간의 숲: 시계토끼를 잡아라!</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Jua&family=Gamja+Flower&display=swap');
+    
+    :root {
+      --primary-color: #8d6e63;
+      --accent-color: #c62828;
+      --bg-color: #fdfcf5;
+      --ui-bg: rgba(255, 255, 255, 0.98);
+    }
+
+    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; }
+    
+    body {
+      margin: 0; padding: 0;
+      font-family: 'Jua', sans-serif;
+      background: var(--bg-color);
+      background-image: radial-gradient(#d7ccc8 1px, transparent 1px);
+      background-size: 20px 20px;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow: hidden; /* 전체 페이지 스크롤 방지 */
+    }
+
+    .screen {
+      width: 100%; max-width: 900px; height: 95vh;
+      background: var(--ui-bg);
+      border-radius: 25px; border: 8px solid var(--primary-color);
+      box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+      display: none; 
+      flex-direction: column; 
+      align-items: center; 
+      padding: 20px; 
+      position: relative;
+      animation: fadeIn 0.5s ease-out;
+      overflow: hidden; /* 내부 스크롤을 위해 컨테이너는 넘침 숨김 */
+    }
+    .screen.active { display: flex; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+    /* 반응형 레이아웃을 위한 스크롤 래퍼 */
+    .scrollable-content {
+        flex: 1; 
+        overflow-y: auto; 
+        width: 100%; 
+        display: flex; 
+        flex-direction: column; 
+        align-items: center;
+        padding: 10px 0;
+        min-height: 0; /* Flexbox overflow fix */
+        scrollbar-width: thin; /* Firefox 스크롤바 얇게 */
+    }
+    
+    /* 하단 고정 버튼 영역 */
+    .footer-action {
+        width: 100%;
+        margin-top: auto;
+        padding-top: 10px;
+        display: flex;
+        justify-content: center;
+        flex-shrink: 0; /* 공간 부족해도 줄어들지 않음 */
+    }
+
+    .intro-story {
+      text-align: center; font-family: 'Gamja Flower', cursive; font-size: 1.6rem;
+      background: #fff8e1; padding: 20px; border-radius: 15px; margin-bottom: 20px;
+      border: 3px dashed var(--primary-color); width: 85%; line-height: 1.5; color: #4e342e;
+    }
+    .login-panel { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; width: 100%; max-width: 600px; margin-top: 10px; }
+    .input-group { display: flex; flex-direction: column; gap: 5px; }
+    .input-group label { color: var(--primary-color); font-size: 1.2rem; }
+    .input-group select, .input-group input { padding: 12px; border: 2px solid #bcaaa4; border-radius: 10px; font-family: 'Jua'; font-size: 1.2rem; }
+
+    .player-list { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; justify-content: center; min-height: 50px; }
+    .player-badge { background: #ffecb3; padding: 8px 15px; border-radius: 20px; border: 2px solid #ffca28; color: #5d4037; font-size: 1.2rem; display: flex; align-items: center; gap: 5px; animation: pop 0.3s; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+    @keyframes pop { 0% { transform: scale(0); } 100% { transform: scale(1); } }
+
+    .btn { padding: 12px 30px; border: none; border-radius: 15px; font-family: 'Jua'; font-size: 1.4rem; cursor: pointer; transition: transform 0.1s, box-shadow 0.1s; color: white; margin: 10px; }
+    .btn-primary { background: var(--accent-color); box-shadow: 0 4px 0 #8e0000; }
+    .btn-secondary { background: var(--primary-color); box-shadow: 0 4px 0 #5d4037; }
+    .btn-info { background: #0288d1; box-shadow: 0 4px 0 #01579b; }
+    .btn-success { background: #2e7d32; box-shadow: 0 4px 0 #1b5e20; }
+    .btn-neutral { background: #757575; box-shadow: 0 4px 0 #424242; }
+    .btn:active { transform: translateY(4px); box-shadow: none; }
+    .btn:disabled { background: #ccc; box-shadow: none; cursor: not-allowed; opacity: 0.7; transform: none; }
+
+    .lobby-header { width: 100%; display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; flex-shrink: 0; }
+    .lobby-content { display: flex; width: 100%; flex: 1; gap: 20px; overflow: hidden; min-height: 0; }
+    .char-select-area { flex: 2; background: #fff; border-radius: 15px; border: 3px solid #efebe9; padding: 15px; display: flex; flex-direction: column; align-items: center; overflow-y: auto; }
+    .record-area { flex: 1; background: #fff3e0; border-radius: 15px; border: 3px solid #ffe0b2; padding: 15px; text-align: center; display: flex; flex-direction: column; overflow-y: auto; }
+
+    .shop-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; width: 100%; margin-top: 10px; overflow-y:auto; padding-bottom: 10px; }
+    .shop-item { border: 2px solid #e0e0e0; border-radius: 10px; padding: 10px; display: flex; flex-direction: column; align-items: center; cursor: pointer; transition: 0.2s; position: relative; background: #fafafa; }
+    .shop-item.locked { filter: grayscale(1); opacity: 0.7; }
+    .shop-item.selected { border-color: var(--accent-color); background: #ffebee; border-width: 3px; transform: scale(1.02); }
+    .shop-item img { width: 70px; height: 70px; object-fit: contain; margin-bottom: 5px; }
+    .shop-price { font-size: 1rem; color: #f57f17; font-weight: bold; }
+    .lock-icon { position: absolute; top: 5px; right: 5px; font-size: 1.2rem; }
+
+    .game-options { width: 100%; background: #e0f2f1; padding: 15px; border-radius: 15px; margin-top: auto; display: flex; flex-direction: column; gap: 8px; flex-shrink: 0;}
+    .option-row { display: flex; align-items: center; gap: 10px; color: #00695c; font-size: 1.1rem; cursor: pointer; }
+    .option-row input { width: 22px; height: 22px; accent-color: #00897b; cursor: pointer; }
+
+    .game-status-panel { width: 100%; display: flex; justify-content: space-between; align-items: center; background: #fff3e0; padding: 10px 20px; border-radius: 15px; border: 3px solid #ffcc80; margin-bottom: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.05); flex-shrink: 0; }
+    .current-player-info { display: flex; align-items: center; gap: 15px; }
+    .current-char-img { width: 70px; height: 70px; border-radius: 50%; border: 3px solid var(--accent-color); background: #fff; object-fit: contain; transition: transform 0.2s; }
+    .turn-text-box { display: flex; flex-direction: column; align-items: flex-start; }
+    .turn-label { font-size: 0.9rem; color: #5d4037; }
+    .player-name-large { font-size: 1.5rem; font-weight: bold; color: var(--accent-color); }
+    .player-score-large { font-size: 1.1rem; color: #f57f17; font-weight: bold; }
+    .timer-container { display: flex; flex-direction: column; align-items: flex-end; width: 40%; }
+    .timer-text { font-size: 2rem; font-weight: bold; color: #333; font-family: monospace; letter-spacing: -1px;}
+    .timer-bar { width: 100%; height: 12px; background: #eee; border-radius: 10px; overflow: hidden; border: 1px solid #ccc; margin-top: 5px; }
+    .timer-fill { height: 100%; background: #4caf50; width: 100%; transition: width 1s linear; }
+    
+    .problem-container { 
+        display: flex; flex-direction: column; align-items: center; justify-content: center; 
+        flex: 1; width: 100%; position: relative; padding-top: 5px; 
+        min-height: 0; /* Flex fix */
+    }
+    .problem-text { font-size: 2rem; color: #3e2723; margin-bottom: 10px; text-align: center; min-height: 40px;}
+    
+    /* 시계 크기 반응형 조정 */
+    .clock-wrapper { position: relative; width: 35vh; height: 35vh; max-width: 300px; max-height: 300px; margin-bottom: 15px; flex-shrink: 0; }
+    canvas { width: 100%; height: 100%; border-radius: 50%; box-shadow: 0 8px 20px rgba(0,0,0,0.15); cursor: grab; background: #fff;}
+    canvas:active { cursor: grabbing; }
+    
+    .input-wrapper { display: flex; gap: 10px; align-items: center; font-size: 1.8rem; display: none; }
+    .time-input { width: 80px; height: 60px; font-size: 2rem; text-align: center; border: 4px solid var(--primary-color); border-radius: 15px; background: #fff8e1; color: #333; }
+    .hint-bubble { background: #fff9c4; padding: 10px 20px; border-radius: 30px; border: 3px solid #fbc02d; color: #5d4037; margin-bottom: 10px; font-size: 1.2rem; display: none; animation: pop 0.3s; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+
+    .feedback-overlay { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 10rem; font-weight: bold; text-shadow: 0 5px 15px rgba(0,0,0,0.3); pointer-events: none; opacity: 0; z-index: 50; }
+    .feedback-correct { color: #2e7d32; }
+    .feedback-wrong { color: #c62828; }
+    @keyframes feedbackPop { 0% { opacity: 0; transform: translate(-50%, -50%) scale(0.5); } 50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); } 100% { opacity: 0; transform: translate(-50%, -50%) scale(1.5); } }
+
+    .result-rank { width: 100%; border-collapse: collapse; margin-top: 10px; }
+    .result-rank th { border-bottom: 2px solid var(--primary-color); padding: 10px; color: var(--accent-color); background: #fbe9e7;}
+    .result-rank td { padding: 12px; border-bottom: 1px solid #eee; text-align: center; font-size: 1.3rem; }
+
+    .modal { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); display: none; justify-content: center; align-items: center; z-index: 100; backdrop-filter: blur(3px); }
+    .modal-content { background: #fff; padding: 30px; border-radius: 25px; max-width: 550px; width: 90%; text-align: center; border: 6px solid var(--primary-color); box-shadow: 0 10px 30px rgba(0,0,0,0.3); position: relative; max-height: 90vh; overflow-y: auto; }
+    .modal-close { position: absolute; top: 15px; right: 20px; font-size: 2rem; cursor: pointer; color: #888; line-height: 20px;}
+    
+    .toast-message { position: fixed; top: 80px; left: 50%; transform: translateX(-50%); background: rgba(60, 40, 0, 0.95); color: #fff; padding: 15px 40px; border-radius: 30px; font-size: 1.4rem; z-index: 2000; opacity: 0; transition: opacity 0.3s; pointer-events: none; box-shadow: 0 5px 15px rgba(0,0,0,0.3); text-align: center; width: 80%; max-width: 600px; border: 2px solid #ffb74d; white-space: pre-line; line-height: 1.4; }
+    
+    /* 로딩 인디케이터 */
+    .loading-overlay {
+        position: fixed; inset: 0; background: rgba(255,255,255,0.7); 
+        display: none; justify-content: center; align-items: center; z-index: 3000;
+        flex-direction: column; font-size: 1.5rem; font-weight: bold; color: var(--primary-color);
+    }
+    .spinner { border: 8px solid #f3f3f3; border-top: 8px solid var(--accent-color); border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin-bottom: 20px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+    /* 캐릭터 상세 모달 스타일 */
+    .char-detail-img { width: 150px; height: 150px; object-fit: contain; margin-bottom: 15px; border-radius: 50%; background: #fafafa; border: 4px solid #eee; }
+    .char-detail-name { font-size: 2rem; font-weight: bold; color: var(--primary-color); margin-bottom: 5px; }
+    .char-detail-desc { font-size: 1.2rem; color: #666; margin-bottom: 20px; }
+    .char-detail-price { font-size: 1.5rem; color: #f57f17; font-weight: bold; margin-bottom: 20px; }
+    .modal-btn-group { display: flex; justify-content: center; gap: 15px; margin-top: 15px; flex-wrap: wrap; }
+
+    /* --- 태블릿 및 작은 높이 화면 최적화 (가로 모드) --- */
+    @media (max-height: 700px) {
+        .screen { padding: 10px; }
+        h1 { font-size: 2rem !important; margin-bottom: 5px !important; }
+        .intro-story { font-size: 1.2rem; padding: 10px; width: 95%; margin-bottom: 10px; }
+        .login-panel { gap: 10px; margin-top: 5px; }
+        .input-group label { font-size: 1rem; }
+        .input-group select, .input-group input { padding: 8px; font-size: 1rem; }
+        .player-list { min-height: 40px; margin-top: 10px; }
+        .player-badge { padding: 5px 10px; font-size: 1rem; }
+        .btn { padding: 8px 20px; font-size: 1.2rem; margin: 5px; }
+        .shop-grid { grid-template-columns: repeat(4, 1fr); }
+        .shop-item img { width: 50px; height: 50px; }
+        .game-options { padding: 10px; }
+        .clock-wrapper { width: 40vh; height: 40vh; max-width: 250px; max-height: 250px; }
+        .problem-text { font-size: 1.5rem; min-height: 30px; margin-bottom: 5px; }
+        .input-wrapper { font-size: 1.4rem; }
+        .time-input { width: 60px; height: 50px; font-size: 1.5rem; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- API URL 설정 중요! -->
+<script>
+    const SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwKoPs7XqOKz_XLDFj876YWYAZiI3hKaJ8VazqSK9-n9yhBiVjDyTuisY1Mqx1qw_tFpg/exec"; // ★★★ 배포한 구글 앱스 스크립트 웹 앱 URL을 여기에 붙여넣으세요! ★★★
+</script>
+
+<div id="loading" class="loading-overlay">
+    <div class="spinner"></div>
+    <div id="loading-text">데이터를 불러오고 있어요...</div>
+</div>
+
+<div id="toast" class="toast-message"></div>
+<div id="feedback-anim" class="feedback-overlay"></div>
+
+<!-- 1. 인트로 -->
+<div id="screen-intro" class="screen active">
+    <h1 style="color:var(--accent-color); font-size:3rem; margin-bottom:10px; text-shadow: 2px 2px 0px #fff; flex-shrink: 0;">⏳ 시간의 숲</h1>
+    
+    <!-- 스크롤 가능한 중간 영역 -->
+    <div class="scrollable-content">
+        <div class="intro-story">
+            "큰일 났어! <b>시계토끼</b>가 시간을 엉망으로 만들고 도망갔어!"<br>
+            올바른 시각을 맞춰서 친구들을 구하고 토끼를 잡아줄래?
+        </div>
+        <div class="login-panel">
+            <div class="input-group">
+                <label>우리 반</label>
+                <select id="login-class" onchange="loadStudentNames()">
+                    <option value="">반 선택</option>
+                    <option value="1">1반</option>
+                    <option value="2">2반</option>
+                    <option value="3">3반</option>
+                    <option value="4">4반</option>
+                    <option value="5">5반(테스트)</option>
+                </select>
+            </div>
+            <div class="input-group">
+                <label>이름</label>
+                <select id="login-name"><option value="">이름 선택</option></select>
+            </div>
+            <div class="input-group" style="grid-column: 1 / -1;">
+                <label>내 번호 (비밀번호)</label>
+                <input type="number" id="login-pwd" placeholder="예: 5" onkeypress="if(event.keyCode==13) addPlayer()">
+            </div>
+        </div>
+        <button class="btn btn-secondary" onclick="addPlayer()" style="width: 200px; margin-top: 20px; flex-shrink:0;">친구 추가 (+)</button>
+        <div class="player-list" id="intro-player-list"></div>
+    </div>
+
+    <!-- 하단 고정 버튼 -->
+    <div class="footer-action">
+        <button class="btn btn-primary" id="btn-goto-lobby" onclick="goToLobby()" disabled style="font-size: 1.6rem; padding: 15px 50px;">로비로 입장 ▶</button>
+    </div>
+</div>
+
+<!-- 2. 로비 -->
+<div id="screen-lobby" class="screen">
+    <div class="lobby-header">
+        <h2 style="margin:0; font-size: 2rem;">🏕️ 베이스캠프</h2>
+        <div><button class="btn btn-info" style="padding: 10px 20px;" onclick="openHelp()">게임 방법</button></div>
+    </div>
+    
+    <div class="lobby-content">
+        <div class="char-select-area">
+            <h3 style="margin-top:0; font-size:1.5rem; flex-shrink:0;">🦸 캐릭터 선택 & 상점</h3>
+            <div style="width:100%; text-align:right; color:#f57f17; font-weight:bold; font-size:1.2rem; margin-bottom:5px; flex-shrink:0;">
+                보유 포인트: <span id="lobby-points">0</span> P
+            </div>
+            <div class="shop-grid" id="shop-grid"></div>
+            <div class="game-options">
+                <h4 style="margin:0 0 10px 0;">⚙️ 선생님 설정</h4>
+                <div class="option-row" onclick="toggleCheckbox('opt-before')">
+                    <input type="checkbox" id="opt-before"><label for="opt-before">도전! '몇 분 전' 문제 포함</label>
+                </div>
+                <div class="option-row" onclick="toggleCheckbox('opt-hard')">
+                    <input type="checkbox" id="opt-hard"><label for="opt-hard">심화! 1분 단위 (추가점수)</label>
+                </div>
+            </div>
+        </div>
+        <div class="record-area">
+            <h3 style="margin-top:0; font-size:1.5rem; flex-shrink:0;">🏆 명예의 전당</h3>
+            <div style="margin-bottom:15px; background:#fff; padding:15px; border-radius:15px; flex-shrink:0;">
+                <div style="font-size:1rem; color:#888;">나의 최고 기록</div>
+                <div style="font-size:2rem; color:var(--accent-color); font-weight:bold;" id="my-best-score">-</div>
+            </div>
+            <div style="text-align:left; flex:1; overflow-y:auto; width:100%;">
+                <h4 style="border-bottom:2px solid #ccc; padding-bottom:5px; margin-bottom:10px;">학년 TOP 5</h4>
+                <ul id="rank-list" style="padding-left:20px; line-height:1.8; font-size: 1.1rem;"></ul>
+            </div>
+        </div>
+    </div>
+
+    <!-- 하단 고정 버튼 -->
+    <div class="footer-action">
+        <button class="btn btn-primary" style="width:100%; font-size: 1.8rem;" onclick="startGame()">게임 시작!</button>
+    </div>
+</div>
+
+<!-- 3. 게임 -->
+<div id="screen-game" class="screen">
+    <div class="game-status-panel">
+        <div class="current-player-info">
+            <img src="" id="game-char-img" class="current-char-img" alt="캐릭터">
+            <div class="turn-text-box">
+                <span class="turn-label">지금은 누구 차례?</span>
+                <span id="game-player-name" class="player-name-large">플레이어</span>
+                <span id="game-score-info" class="player-score-large">0점</span>
+            </div>
+        </div>
+        <div class="timer-container">
+            <div id="timer-text" class="timer-text">03:00</div>
+            <div class="timer-bar"><div class="timer-fill" id="timer-bar"></div></div>
+        </div>
+    </div>
+    
+    <!-- 문제 영역 -->
+    <div class="problem-container">
+        <div class="problem-text" id="problem-text">문제를 불러오는 중...</div>
+        <div class="hint-bubble" id="hint-bubble"></div>
+        <div class="clock-wrapper"><canvas id="gameCanvas" width="300" height="300"></canvas></div>
+        <div class="input-wrapper" id="input-wrapper">
+            <input type="number" inputmode="numeric" class="time-input" id="inp-hour"> <span style="font-size:1.8rem;">시</span>
+            <input type="number" inputmode="numeric" class="time-input" id="inp-min"> <span style="font-size:1.8rem;">분</span>
+            <span id="text-suffix" style="display:none; font-size:1.8rem;"> 전</span>
+        </div>
+    </div>
+
+    <!-- 하단 고정 버튼 -->
+    <div class="footer-action" style="margin-bottom: 0;">
+        <button class="btn btn-primary" onclick="submitAnswer()" style="width:300px; font-size: 1.6rem;">정답 확인</button>
+    </div>
+</div>
+
+<!-- 4. 결과 -->
+<div id="screen-result" class="screen">
+    <h1 style="color:var(--accent-color); font-size: 3rem; margin-bottom: 10px; flex-shrink: 0;">🎉 게임 종료!</h1>
+    
+    <div class="scrollable-content">
+        <div style="font-size:1.5rem; margin-bottom:20px; text-align: center;">모두 수고했어! 토끼를 잡았구나!</div>
+        <div style="width:100%; max-width:700px; background:#fff; padding:20px; border-radius:15px; border:3px solid #eee; overflow-y:auto; max-height: 50vh;">
+            <table class="result-rank">
+                <thead><tr><th width="15%">순위</th><th width="30%">이름</th><th width="25%">점수</th><th width="30%">획득 포인트</th></tr></thead>
+                <tbody id="result-list"></tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="footer-action">
+        <button class="btn btn-secondary" onclick="goToLobby()" style="padding: 15px 40px; font-size: 1.5rem;">로비로 돌아가기</button>
+    </div>
+</div>
+
+<!-- 도움말 모달 -->
+<div id="modal-help" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeHelp()">&times;</span>
+        <h2 style="color:var(--primary-color);">📜 게임 방법</h2>
+        <ul style="text-align:left; line-height:2; font-size: 1.2rem;">
+            <li>모든 친구에게 <b>각각 3분</b>의 시간이 주어집니다.</li>
+            <li>틀리면 <b>1번의 힌트 기회</b>가 있어요.</li>
+            <li style="color:#c62828;"><b>🔥 3연속 정답</b>시 보너스 점수!</li>
+            <li style="color:#2e7d32;"><b>⚡ 10초 안에</b> 맞추면 스피드 보너스!</li>
+            <li style="color:#f57f17;"><b>✨ 심화 문제</b>는 점수를 더 줘요!</li>
+        </ul>
+    </div>
+</div>
+
+<!-- 캐릭터 상세 모달 -->
+<div id="modal-char-detail" class="modal">
+    <div class="modal-content">
+        <span class="modal-close" onclick="closeCharModal()">&times;</span>
+        <h2 style="color:var(--primary-color);">캐릭터 상세 정보</h2>
+        <img id="detail-char-img" class="char-detail-img" src="" alt="캐릭터 상세">
+        <div id="detail-char-name" class="char-detail-name"></div>
+        <div id="detail-char-desc" class="char-detail-desc"></div>
+        <div id="detail-char-price" class="char-detail-price"></div>
+        
+        <div style="font-size: 1.3rem; margin-bottom: 10px; font-weight: bold; color: #333;" id="detail-question">구매하시겠습니까?</div>
+        
+        <div class="modal-btn-group" id="detail-btn-group">
+            <!-- 버튼은 JS에서 동적 생성 -->
+        </div>
+    </div>
+</div>
+
+<script>
+    // --- 유틸리티 ---
+    function showToast(msg) {
+        const el = document.getElementById('toast'); el.textContent = msg; el.style.opacity = '1';
+        setTimeout(() => { el.style.opacity = '0'; }, 2000);
+    }
+    function toggleCheckbox(id) { const el = document.getElementById(id); el.checked = !el.checked; }
+    function setLoading(show) { document.getElementById('loading').style.display = show ? 'flex' : 'none'; }
+
+    // --- 데이터 (로컬 명단은 로그인용, 나머지 데이터는 서버에서 옴) ---
+    const DB_STUDENTS = {
+        "1": [
+            {name:"강태율",pwd:"2"},{name:"곽서진",pwd:"3"},{name:"권효빈",pwd:"4"},{name:"김소은",pwd:"5"},
+            {name:"김소정",pwd:"6"},{name:"김호연",pwd:"7"},{name:"노하윤",pwd:"8"},{name:"문세와",pwd:"9"},
+            {name:"문세준",pwd:"10"},{name:"박은설",pwd:"11"},{name:"송다은",pwd:"12"},{name:"안서현",pwd:"13"},
+            {name:"안태은",pwd:"14"},{name:"윤주원",pwd:"15"},{name:"이다연",pwd:"16"},{name:"이성찬",pwd:"17"},
+            {name:"이은율",pwd:"18"},{name:"이정우",pwd:"19"},{name:"전은재",pwd:"21"},{name:"최아민",pwd:"22"},
+            {name:"방준원",pwd:"23"},{name:"성우협",pwd:"24"}
+        ],
+        "2": [
+            {name:"김시안",pwd:"1"},{name:"김주아",pwd:"2"},{name:"김주환",pwd:"3"},{name:"김하민",pwd:"4"},
+            {name:"김한결",pwd:"5"},{name:"노윤재",pwd:"6"},{name:"문시우",pwd:"7"},{name:"박시은",pwd:"8"},
+            {name:"방유민",pwd:"9"},{name:"안소랑",pwd:"10"},{name:"오서율",pwd:"11"},{name:"윤지현",pwd:"12"},
+            {name:"이도윤",pwd:"13"},{name:"이은성",pwd:"14"},{name:"전민호",pwd:"15"},{name:"차서아",pwd:"16"},
+            {name:"최한설",pwd:"17"},{name:"한재이",pwd:"18"},{name:"허지완",pwd:"19"},{name:"홍채현",pwd:"20"},
+            {name:"황유솔",pwd:"21"},{name:"황 희",pwd:"22"},{name:"이봄의",pwd:"23"}
+        ],
+        "3": [
+            {name:"고찬빈",pwd:"1"},{name:"구서규",pwd:"2"},{name:"김단하",pwd:"3"},{name:"김민채",pwd:"4"},
+            {name:"김시현",pwd:"5"},{name:"김주아",pwd:"6"},{name:"김해윤",pwd:"7"},{name:"박민우",pwd:"8"},
+            {name:"송서현",pwd:"9"},{name:"유기현",pwd:"10"},{name:"이단비",pwd:"11"},{name:"이루아",pwd:"12"},
+            {name:"이유빈",pwd:"13"},{name:"이은",pwd:"14"},{name:"이해리",pwd:"15"},{name:"장하윤",pwd:"16"},
+            {name:"전소율",pwd:"17"},{name:"정아윤",pwd:"18"},{name:"조이레",pwd:"19"},{name:"한지민",pwd:"21"},
+            {name:"서연희",pwd:"22"},{name:"오휘범",pwd:"23"}
+        ],
+        "4": [
+            {name:"사무엘",pwd:"1"},{name:"경라현",pwd:"3"},{name:"경이한",pwd:"4"},{name:"김규빈",pwd:"5"},
+            {name:"김기쁨",pwd:"6"},{name:"김사랑",pwd:"7"},{name:"김윤서",pwd:"8"},{name:"김재하",pwd:"9"},
+            {name:"남이솔",pwd:"10"},{name:"박도담",pwd:"11"},{name:"박예린",pwd:"12"},{name:"신보민",pwd:"13"},
+            {name:"신우주",pwd:"14"},{name:"심로아",pwd:"15"},{name:"이강준",pwd:"16"},{name:"이의서",pwd:"17"},
+            {name:"임지율",pwd:"18"},{name:"정하연",pwd:"19"},{name:"조연서",pwd:"20"},{name:"주두림",pwd:"21"},
+            {name:"황채윤",pwd:"22"},{name:"배시현",pwd:"23"}
+        ],
+        "5": [
+            {name:"테스트1",pwd:"1"},{name:"테스트2",pwd:"2"},{name:"테스트3",pwd:"3"},{name:"테스트4",pwd:"4"},{name:"테스트5",pwd:"5"}
+        ]
+    };
+
+    // 캐릭터 데이터 업데이트 (새로운 이미지 소스 적용)
+    const CHARACTERS = [
+        {
+            id: 'basic', 
+            name: '새로운', 
+            price: 0, 
+            desc: '항상 밝게 웃는 새로운 친구!',
+            imgNormal: 'https://i.imgur.com/ZzKwRQL.png',
+            imgCorrect: 'https://i.imgur.com/Hu8cRBf.png',
+            imgWrong: 'https://i.imgur.com/fxlkim6.png'
+        },
+        {
+            id: 'cat', 
+            name: '냐옹이', 
+            price: 200, 
+            desc: '도도하지만 정답을 맞추면 좋아해요.',
+            imgNormal: 'https://i.imgur.com/B6qixEF.png',
+            imgCorrect: 'https://i.imgur.com/qBZ8rrf.png',
+            imgWrong: 'https://i.imgur.com/nsWFy5R.png'
+        },
+        {
+            id: 'chori', 
+            name: '쵸리', 
+            price: 200, 
+            desc: '장난꾸러기 쵸리!',
+            imgNormal: 'https://i.imgur.com/G7r2vk7.png',
+            imgCorrect: 'https://i.imgur.com/3Vzd2Ca.png',
+            imgWrong: 'https://i.imgur.com/Xk2oruL.png'
+        },
+        {
+            id: 'mango', 
+            name: '망고', 
+            price: 200, 
+            desc: '달콤한 망고처럼 상큼해요.',
+            imgNormal: 'https://i.imgur.com/qw7wlKB.png',
+            imgCorrect: 'https://i.imgur.com/wLPLFzh.png',
+            imgWrong: 'https://i.imgur.com/goA0Zya.png'
+        },
+        {
+            id: 'tuitui', 
+            name: '투이투이', 
+            price: 200, 
+            desc: '눈이 초롱초롱한 투이투이.',
+            imgNormal: 'https://i.imgur.com/DHzyly7.png',
+            imgCorrect: 'https://i.imgur.com/wx1fm0C.png',
+            imgWrong: 'https://i.imgur.com/UOI5GbQ.png'
+        },
+        {
+            id: 'honey', 
+            name: '꿀인', 
+            price: 200, 
+            desc: '꿀을 좋아하는 귀여운 곰.',
+            imgNormal: 'https://i.imgur.com/0GQxnXh.png',
+            imgCorrect: 'https://i.imgur.com/AzEMVCL.png',
+            imgWrong: 'https://i.imgur.com/hyfnGFx.png'
+        },
+        {
+            id: 'time', 
+            name: '시각이', 
+            price: 200, 
+            desc: '시간의 숲의 가이드 시각이!',
+            imgNormal: 'https://i.imgur.com/vmqQ5kG.png',
+            imgCorrect: 'https://i.imgur.com/hfUwBOu.png',
+            imgWrong: 'https://i.imgur.com/CUmcDwW.png'
+        },
+        {
+            id: 'redcat', 
+            name: '빨냥', 
+            price: 200, 
+            desc: '열정적인 빨간 고양이.',
+            imgNormal: 'https://i.imgur.com/ccxG70t.png',
+            imgCorrect: 'https://i.imgur.com/DIdFXRk.png',
+            imgWrong: 'https://i.imgur.com/nWR1xYj.png'
+        },
+        {
+            id: 'iruri', 
+            name: '이루리', 
+            price: 200, 
+            desc: '꿈을 이루어주는 요정.',
+            imgNormal: 'https://i.imgur.com/3ossOM4.png',
+            imgCorrect: 'https://i.imgur.com/uKtS40n.png',
+            imgWrong: 'https://i.imgur.com/nxJBK4n.png'
+        }
+    ];
+
+    let activePlayers = []; 
+    let currentPlayerIdx = 0;
+    let timerInterval = null;
+    let currentProblem = null;
+    let currentClockMinutes = 0; 
+    let currentAttempt = 0;
+    let gameConfig = { useBefore: false, useHard: false };
+    
+    // 선택된 상점 아이템 임시 저장용
+    let selectedShopItem = null;
+
+    function loadStudentNames() {
+        const cls = document.getElementById('login-class').value;
+        const nameSelect = document.getElementById('login-name');
+        nameSelect.innerHTML = '<option value="">이름 선택</option>';
+        if (DB_STUDENTS[cls]) {
+            DB_STUDENTS[cls].forEach(st => {
+                const opt = document.createElement('option');
+                opt.value = st.name; opt.textContent = st.name;
+                nameSelect.appendChild(opt);
+            });
+        }
+    }
+
+    // --- 서버 통신 로그인 ---
+    async function addPlayer() {
+        if(!SCRIPT_URL) { alert("스크립트 URL을 설정해주세요!"); return; }
+        if (activePlayers.length >= 4) { showToast("최대 4명까지만 할 수 있어요!"); return; }
+        
+        const cls = document.getElementById('login-class').value;
+        const name = document.getElementById('login-name').value;
+        const pwd = document.getElementById('login-pwd').value.trim();
+
+        if (!cls || !name || !pwd) { showToast("정보를 모두 입력해주세요."); return; }
+        if (activePlayers.find(p => p.name === name)) { showToast("이미 추가된 친구예요."); return; }
+
+        setLoading(true);
+        try {
+            const response = await fetch(`${SCRIPT_URL}?action=login&class=${cls}&name=${name}&pwd=${pwd}`);
+            const json = await response.json();
+
+            if (json.result === "success") {
+                const userData = json.data;
+                let safeChars = ['basic'];
+                if (Array.isArray(userData.chars)) {
+                    safeChars = userData.chars;
+                } else if (typeof userData.chars === 'string') {
+                    safeChars = userData.chars.split(',').map(s => s.trim());
+                }
+
+                activePlayers.push({
+                    class: cls, name: name, score: 0, 
+                    timeLeft: 180, consecutiveCorrect: 0, consecutiveWrong: 0,
+                    charId: 'basic', 
+                    points: parseInt(userData.points) || 0,
+                    unlockedChars: safeChars,
+                    highScore: parseInt(userData.score) || 0
+                });
+                renderPlayerList();
+                document.getElementById('login-pwd').value = '';
+                showToast(`환영해, ${name}!`);
+            } else {
+                showToast(json.message || "로그인 실패!");
+            }
+        } catch (e) {
+            console.error(e);
+            showToast("서버 연결에 실패했어요. (테스트 모드라면 코드 상단의 URL을 확인하세요)");
+            // --- 오프라인 테스트용 (서버 실패시 자동 로그인 처리) ---
+            // 실제 배포시에는 아래 블록을 주석 처리 하세요.
+            /*
+            activePlayers.push({
+                class: cls, name: name, score: 0, 
+                timeLeft: 180, consecutiveCorrect: 0, consecutiveWrong: 0,
+                charId: 'basic', 
+                points: 500, // 테스트용 500포인트
+                unlockedChars: ['basic'],
+                highScore: 0
+            });
+            renderPlayerList();
+            document.getElementById('login-pwd').value = '';
+            showToast(`[테스트 모드] 환영해, ${name}!`);
+            */
+            // ----------------------------------------------------
+        } finally {
+            setLoading(false);
+        }
+    }
+
+    function renderPlayerList() {
+        const list = document.getElementById('intro-player-list');
+        list.innerHTML = '';
+        activePlayers.forEach((p, idx) => {
+            const badge = document.createElement('div');
+            badge.className = 'player-badge';
+            badge.innerHTML = `<span>${idx+1}P ${p.name}</span> <span style="cursor:pointer; margin-left:5px; color:#c62828;" onclick="removePlayer(${idx})">✖</span>`;
+            list.appendChild(badge);
+        });
+        document.getElementById('btn-goto-lobby').disabled = activePlayers.length === 0;
+    }
+
+    function removePlayer(idx) { activePlayers.splice(idx, 1); renderPlayerList(); }
+
+    function goToLobby() {
+        if(activePlayers.length === 0) return;
+        showScreen('screen-lobby');
+        fetchRank();
+        updateLobbyUI();
+    }
+
+    // --- 서버 통신 랭킹 ---
+    async function fetchRank() {
+        try {
+            const response = await fetch(`${SCRIPT_URL}?action=rank`);
+            const json = await response.json();
+            if (json.result === "success") {
+                const list = document.getElementById('rank-list');
+                list.innerHTML = '';
+                json.data.forEach((r, i) => {
+                    list.innerHTML += `<li>${i+1}위: ${r.name} (${r.score}점)</li>`;
+                });
+            }
+        } catch(e) { console.error(e); }
+    }
+
+    function updateLobbyUI() {
+        let container = document.querySelector('.char-select-area h3');
+        if(!document.getElementById('lobby-player-select')) {
+            const select = document.createElement('select');
+            select.id = 'lobby-player-select';
+            select.style.marginLeft = '10px'; select.style.padding = '5px';
+            select.style.fontSize = '1.2rem'; select.style.fontFamily = 'Jua';
+            select.onchange = renderShop;
+            container.appendChild(select);
+        }
+        const select = document.getElementById('lobby-player-select');
+        select.innerHTML = '';
+        activePlayers.forEach((p, idx) => {
+            const opt = document.createElement('option');
+            opt.value = idx; opt.textContent = `${idx+1}P ${p.name}`;
+            select.appendChild(opt);
+        });
+        renderShop();
+        
+        const pIdx = select.value || 0;
+        document.getElementById('my-best-score').textContent = activePlayers[pIdx].highScore + '점';
+    }
+
+    function renderShop() {
+        const pIdx = document.getElementById('lobby-player-select').value || 0;
+        const player = activePlayers[pIdx];
+        document.getElementById('lobby-points').textContent = player.points;
+        const grid = document.getElementById('shop-grid');
+        grid.innerHTML = '';
+        
+        document.getElementById('my-best-score').textContent = player.highScore + '점';
+        
+        CHARACTERS.forEach(char => {
+            const item = document.createElement('div');
+            item.className = 'shop-item';
+            const isUnlocked = player.unlockedChars.includes(char.id);
+            const isSelected = player.charId === char.id;
+            if (!isUnlocked) item.classList.add('locked');
+            if (isSelected) item.classList.add('selected');
+            
+            // 이미지 표시 (기본 이미지)
+            item.innerHTML = `<img src="${char.imgNormal}"><div style="font-weight:bold; font-size:1.1rem;">${char.name}</div>
+                ${!isUnlocked ? `<div class="shop-price">${char.price}P</div><div class="lock-icon">🔒</div>` : ''}
+                ${isSelected ? '<div style="color:#c62828; font-size:0.9rem; font-weight:bold;">선택됨</div>' : ''}`;
+            
+            // 클릭 시 상세 모달 열기
+            item.onclick = () => {
+                openCharDetail(char.id);
+            };
+            grid.appendChild(item);
+        });
+    }
+
+    // --- 캐릭터 상세 모달 로직 ---
+    function openCharDetail(charId) {
+        const pIdx = document.getElementById('lobby-player-select').value || 0;
+        const player = activePlayers[pIdx];
+        const charInfo = CHARACTERS.find(c => c.id === charId);
+        
+        if (!charInfo) return;
+
+        selectedShopItem = charInfo; // 현재 보고 있는 아이템 저장
+
+        // 모달 정보 채우기
+        document.getElementById('detail-char-img').src = charInfo.imgNormal;
+        document.getElementById('detail-char-name').textContent = charInfo.name;
+        document.getElementById('detail-char-desc').textContent = charInfo.desc || "특별한 능력을 가진 친구입니다.";
+        document.getElementById('detail-char-price').textContent = `가격: ${charInfo.price}P`;
+
+        const btnGroup = document.getElementById('detail-btn-group');
+        btnGroup.innerHTML = '';
+
+        const isUnlocked = player.unlockedChars.includes(charId);
+        const isEquipped = player.charId === charId;
+
+        if (isUnlocked) {
+            // 이미 보유 중인 경우
+            document.getElementById('detail-question').textContent = "이미 보유중인 캐릭터입니다.";
+            
+            // [네 (비활성화)] 버튼
+            const btnYes = document.createElement('button');
+            btnYes.className = 'btn btn-neutral';
+            btnYes.textContent = '네 (구매됨)';
+            btnYes.disabled = true; // 요청: 구매했다면 네 버튼 비활성화
+            btnGroup.appendChild(btnYes);
+
+            // [아니오 (닫기)] 버튼
+            const btnNo = document.createElement('button');
+            btnNo.className = 'btn btn-secondary';
+            btnNo.textContent = '아니오 (닫기)';
+            btnNo.onclick = closeCharModal;
+            btnGroup.appendChild(btnNo);
+            
+            // [장착하기] 버튼 추가 (편의성)
+            if (!isEquipped) {
+                const btnEquip = document.createElement('button');
+                btnEquip.className = 'btn btn-primary';
+                btnEquip.textContent = '장착하기';
+                btnEquip.style.marginLeft = '10px';
+                btnEquip.onclick = () => {
+                    player.charId = charId;
+                    renderShop();
+                    closeCharModal();
+                    showToast(`${charInfo.name} 장착 완료!`);
+                    savePlayerData(player);
+                };
+                btnGroup.appendChild(btnEquip);
+            } else {
+                 const label = document.createElement('span');
+                 label.style.alignSelf = 'center';
+                 label.style.marginLeft = '10px';
+                 label.style.fontWeight = 'bold';
+                 label.style.color = '#c62828';
+                 label.textContent = "(현재 장착중)";
+                 btnGroup.appendChild(label);
+            }
+
+        } else {
+            // 미보유 시 구매 로직
+            document.getElementById('detail-question').textContent = "캐릭터를 구매하시겠습니까?";
+            
+            // [네 (구매)]
+            const btnBuy = document.createElement('button');
+            btnBuy.className = 'btn btn-primary';
+            btnBuy.textContent = '네 (구매)';
+            btnBuy.onclick = () => {
+                if (player.points >= charInfo.price) {
+                    player.points -= charInfo.price;
+                    player.unlockedChars.push(charId);
+                    
+                    // 구매 성공 시 UI 업데이트 (재귀 호출로 버튼 상태 갱신)
+                    showToast(`🎉 ${charInfo.name} 획득!`);
+                    savePlayerData(player);
+                    renderShop(); // 뒤쪽 상점 리스트 갱신
+                    openCharDetail(charId); // 모달 내용 갱신 (구매됨 상태로)
+                } else {
+                    showToast("포인트가 부족해요! 😭");
+                }
+            };
+            btnGroup.appendChild(btnBuy);
+
+            // [아니오 (취소)]
+            const btnCancel = document.createElement('button');
+            btnCancel.className = 'btn btn-secondary';
+            btnCancel.textContent = '아니오';
+            btnCancel.onclick = closeCharModal;
+            btnGroup.appendChild(btnCancel);
+        }
+
+        document.getElementById('modal-char-detail').style.display = 'flex';
+    }
+
+    function closeCharModal() {
+        document.getElementById('modal-char-detail').style.display = 'none';
+        selectedShopItem = null;
+    }
+
+    // --- 서버 통신 저장 ---
+    function savePlayerData(player) {
+        const payload = {
+            class: player.class,
+            name: player.name,
+            score: player.score > player.highScore ? player.score : player.highScore,
+            points: player.points,
+            chars: player.unlockedChars
+        };
+        
+        fetch(SCRIPT_URL, {
+            method: 'POST',
+            body: JSON.stringify(payload)
+        }).then(res => res.json()).then(json => {
+            console.log("Saved:", json);
+        }).catch(err => console.error(err));
+    }
+
+    // --- 게임 로직 ---
+    function startGame() {
+        showScreen('screen-game');
+        gameConfig.useBefore = document.getElementById('opt-before').checked;
+        gameConfig.useHard = document.getElementById('opt-hard').checked;
+        currentPlayerIdx = 0;
+        activePlayers.forEach(p => { 
+            p.score = 0; p.consecutiveCorrect = 0; p.consecutiveWrong = 0; p.timeLeft = 180; 
+        });
+        clearInterval(timerInterval);
+        timerInterval = setInterval(gameLoop, 1000);
+        nextTurn();
+    }
+
+    function gameLoop() {
+        const currentPlayer = activePlayers[currentPlayerIdx];
+        if (currentPlayer && currentPlayer.timeLeft > 0) {
+            currentPlayer.timeLeft--;
+            updateGameUI();
+            if (currentPlayer.timeLeft <= 0) {
+                showToast(`⏰ ${currentPlayer.name} 시간 종료!`);
+                let nextIdx = (currentPlayerIdx + 1) % activePlayers.length;
+                let loopCount = 0;
+                while (activePlayers[nextIdx].timeLeft <= 0) {
+                    nextIdx = (nextIdx + 1) % activePlayers.length;
+                    loopCount++;
+                    if (loopCount >= activePlayers.length) { endGame(); return; }
+                }
+                currentPlayerIdx = nextIdx;
+                nextTurn();
+            }
+        }
+    }
+
+    function updateGameUI() {
+        const player = activePlayers[currentPlayerIdx];
+        const charInfo = CHARACTERS.find(c => c.id === player.charId);
+        
+        // 현재 리액션 상태 확인 (없으면 기본값)
+        if (!player.reactionState) player.reactionState = 'normal';
+        
+        const imgEl = document.getElementById('game-char-img');
+        
+        // 상태에 따른 이미지 소스 결정
+        let targetSrc = charInfo.imgNormal;
+        if (player.reactionState === 'correct') targetSrc = charInfo.imgCorrect;
+        else if (player.reactionState === 'wrong') targetSrc = charInfo.imgWrong;
+        
+        // 이미지 소스가 다를 때만 변경 (깜빡임 방지)
+        if (imgEl.src !== targetSrc) {
+            imgEl.src = targetSrc;
+        }
+
+        document.getElementById('game-player-name').textContent = player.name;
+        document.getElementById('game-score-info').textContent = `${player.score}점`;
+        const pct = (player.timeLeft / 180) * 100;
+        document.getElementById('timer-bar').style.width = pct + '%';
+        if(pct < 20) document.getElementById('timer-bar').style.background = '#e91e63';
+        else if(pct < 50) document.getElementById('timer-bar').style.background = '#ff9800';
+        else document.getElementById('timer-bar').style.background = '#4caf50';
+        const m = Math.floor(player.timeLeft / 60);
+        const s = player.timeLeft % 60;
+        document.getElementById('timer-text').textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+    }
+
+    // 캐릭터 리액션 설정 함수
+    function setCharacterReaction(state) {
+        const player = activePlayers[currentPlayerIdx];
+        player.reactionState = state;
+        updateGameUI();
+        
+        // 2초 후 기본 상태로 복귀
+        if (state !== 'normal') {
+            setTimeout(() => {
+                if (activePlayers[currentPlayerIdx] === player) { // 플레이어가 바뀌지 않았다면
+                    player.reactionState = 'normal';
+                    updateGameUI();
+                }
+            }, 2000);
+        }
+    }
+
+    function nextTurn() {
+        let loop = 0;
+        while(activePlayers[currentPlayerIdx].timeLeft <= 0) {
+            currentPlayerIdx = (currentPlayerIdx + 1) % activePlayers.length;
+            loop++;
+            if(loop > activePlayers.length) { endGame(); return; }
+        }
+        const player = activePlayers[currentPlayerIdx];
+        player.reactionState = 'normal'; // 턴 시작시 평온한 표정
+        updateGameUI();
+        document.getElementById('hint-bubble').style.display = 'none'; 
+        generateProblem(player);
+    }
+
+    function generateProblem(player) {
+        currentAttempt = 0;
+        player.problemStartTime = player.timeLeft;
+
+        let types = [1, 2];
+        if (gameConfig.useBefore) types.push(3, 4);
+        let r = Math.random();
+        let selectedType = 1;
+        if (gameConfig.useBefore) {
+            let hardProb = 0.5; 
+            if (player.consecutiveCorrect > 1) hardProb = 0.8; 
+            if (player.consecutiveWrong > 1) hardProb = 0.2; 
+            if (r < hardProb) selectedType = Math.random() < 0.5 ? 3 : 4;
+            else selectedType = Math.random() < 0.5 ? 1 : 2;
+        } else { selectedType = Math.random() < 0.5 ? 1 : 2; }
+
+        let h, m;
+        h = Math.floor(Math.random() * 12) + 1;
+        if (gameConfig.useHard) {
+            if (selectedType >= 3) m = Math.floor(Math.random() * 20) + 40; 
+            else m = Math.floor(Math.random() * 60);
+        } else {
+            if (selectedType >= 3) { const opts = [40, 45, 50, 55]; m = opts[Math.floor(Math.random() * opts.length)]; }
+            else { m = Math.floor(Math.random() * 12) * 5; }
+        }
+        let totalM = (h === 12 ? 12 : h) * 60 + m; 
+        if (h===12 && m===0) totalM = 12 * 60; 
+        currentProblem = { type: selectedType, h: h, m: m, totalM: totalM };
+        
+        const pText = document.getElementById('problem-text');
+        const inpWrap = document.getElementById('input-wrapper');
+        const suffix = document.getElementById('text-suffix');
+        inpWrap.style.display = 'none';
+        document.getElementById('inp-hour').value = '';
+        document.getElementById('inp-min').value = '';
+        isClockInteractive = false;
+
+        if (selectedType === 1) { 
+            pText.innerHTML = `<span style="color:var(--accent-color)">${h}시 ${String(m).padStart(2,'0')}분</span>을 만드세요.`;
+            isClockInteractive = true; currentClockMinutes = Math.floor(Math.random() * 720); 
+        } else if (selectedType === 2) { 
+            pText.textContent = "시계를 보고 시각을 쓰세요.";
+            inpWrap.style.display = 'flex'; suffix.style.display = 'none'; currentClockMinutes = totalM;
+        } else if (selectedType === 3) { 
+            let nextH = (h % 12) + 1; let beforeM = 60 - m;
+            pText.innerHTML = `<span style="color:var(--accent-color)">${nextH}시 ${beforeM}분 전</span>을 만드세요.`;
+            isClockInteractive = true; currentClockMinutes = Math.floor(Math.random() * 720);
+        } else if (selectedType === 4) { 
+            pText.textContent = "몇 시 몇 분 전일까요?";
+            inpWrap.style.display = 'flex'; suffix.style.display = 'inline'; currentClockMinutes = totalM;
+        }
+        drawClock();
+    }
+
+    function showFeedbackAnim(isCorrect) {
+        const el = document.getElementById('feedback-anim');
+        el.textContent = isCorrect ? '⭕' : '❌';
+        el.className = 'feedback-overlay ' + (isCorrect ? 'feedback-correct' : 'feedback-wrong');
+        el.style.animation = 'none'; el.offsetHeight; 
+        el.style.animation = 'feedbackPop 0.8s ease-out forwards';
+    }
+
+    function submitAnswer() {
+        if (!currentProblem) return;
+        let isCorrect = false;
+        const player = activePlayers[currentPlayerIdx];
+        
+        if (currentProblem.type === 1 || currentProblem.type === 3) {
+            let userM = Math.round(currentClockMinutes);
+            let diff = Math.abs(userM - currentProblem.totalM);
+            while(diff >= 720) diff -= 720;
+            if (diff === 0 || diff === 720) isCorrect = true;
+        } else if (currentProblem.type === 2) {
+            const uH = parseInt(document.getElementById('inp-hour').value);
+            const uM = parseInt(document.getElementById('inp-min').value);
+            let ansH = currentProblem.h; let ansM = currentProblem.m;
+            if (uH === ansH && uM === ansM) isCorrect = true;
+        } else if (currentProblem.type === 4) {
+            const uH = parseInt(document.getElementById('inp-hour').value);
+            const uM = parseInt(document.getElementById('inp-min').value);
+            let ansH = (currentProblem.h % 12) + 1; let ansM = 60 - currentProblem.m;
+            if (uH === ansH && uM === ansM) isCorrect = true;
+        }
+
+        if (isCorrect) {
+            showFeedbackAnim(true);
+            setCharacterReaction('correct'); // 정답 리액션
+
+            let gainedScore = 10;
+            let bonuses = [];
+
+            if (gameConfig.useHard || currentProblem.type >= 3) {
+                gainedScore += 10;
+                bonuses.push("✨심화");
+            }
+            const timeTaken = player.problemStartTime - player.timeLeft; 
+            if (timeTaken <= 10) {
+                gainedScore += 5;
+                bonuses.push("⚡스피드");
+            }
+            player.consecutiveCorrect++;
+            if (player.consecutiveCorrect >= 3) {
+                gainedScore += 5;
+                bonuses.push(`🔥${player.consecutiveCorrect}연승`);
+            }
+            
+            player.score += gainedScore;
+            player.consecutiveWrong = 0;
+
+            let msg = `정답! +${gainedScore}점`;
+            if (bonuses.length > 0) {
+                msg += `\n(${bonuses.join(', ')})`;
+            }
+            showToast(msg);
+
+            setTimeout(() => {
+                let nextIdx = (currentPlayerIdx + 1) % activePlayers.length;
+                let loopCount = 0;
+                while (activePlayers[nextIdx].timeLeft <= 0) {
+                    nextIdx = (nextIdx + 1) % activePlayers.length;
+                    loopCount++;
+                    if (loopCount >= activePlayers.length) { endGame(); return; }
+                }
+                currentPlayerIdx = nextIdx;
+                nextTurn();
+            }, 1000);
+        } else {
+            currentAttempt++;
+            showFeedbackAnim(false);
+            setCharacterReaction('wrong'); // 오답 리액션
+
+            if (currentAttempt < 2) {
+                showToast(`틀렸어요! 힌트를 줄게요. (기회 1번 남음)`);
+                player.consecutiveCorrect = 0;
+                showHint();
+            } else {
+                showToast("아쉽네요! 다음 친구에게 넘어갑니다!");
+                player.consecutiveCorrect = 0;
+                player.consecutiveWrong++;
+                setTimeout(() => {
+                    let nextIdx = (currentPlayerIdx + 1) % activePlayers.length;
+                    let loopCount = 0;
+                    while (activePlayers[nextIdx].timeLeft <= 0) {
+                        nextIdx = (nextIdx + 1) % activePlayers.length;
+                        loopCount++;
+                        if (loopCount >= activePlayers.length) { endGame(); return; }
+                    }
+                    currentPlayerIdx = nextIdx;
+                    nextTurn();
+                }, 2000);
+            }
+        }
+    }
+    
+    function showHint() {
+        const bubble = document.getElementById('hint-bubble');
+        bubble.style.display = 'block';
+        const type = currentProblem.type;
+        if (type === 1) bubble.textContent = `💡 힌트: 짧은 바늘을 ${currentProblem.h} 근처로 가져가보세요.`;
+        else if (type === 2) bubble.textContent = "💡 힌트: 긴 바늘이 가리키는 숫자에 5를 곱해보세요.";
+        else if (type === 3) {
+            const nextH = (currentProblem.h % 12) + 1;
+            bubble.textContent = `💡 힌트: ${nextH}시가 되기까지 얼마나 남았나요?`;
+        } else if (type === 4) bubble.textContent = "💡 힌트: 곧 몇 시가 되나요? 12까지 몇 칸 남았나요?";
+    }
+
+    function endGame() {
+        clearInterval(timerInterval);
+        showScreen('screen-result');
+        const tbody = document.getElementById('result-list');
+        tbody.innerHTML = '';
+        
+        let sorted = [...activePlayers].sort((a,b) => b.score - a.score);
+        sorted.forEach((p, idx) => {
+            const earnedPoints = Math.floor(p.score * 0.2); 
+            p.points += earnedPoints;
+            
+            savePlayerData(p);
+            
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>${idx+1}위</td><td style="font-weight:bold;">${p.name}</td>
+                <td style="color:var(--accent-color); font-weight:bold;">${p.score}점</td>
+                <td style="color:#f57f17;">+${earnedPoints}P</td>`;
+            tbody.appendChild(tr);
+        });
+    }
+
+    // --- 캔버스 시계 ---
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const size = 300; const center = size / 2; const radius = size / 2 - 15;
+    let isDragging = false; let isClockInteractive = false;
+
+    function drawClock() {
+        // 반응형으로 캔버스 크기가 변경되면 스케일 조정 필요할 수 있음
+        // 하지만 여기서는 CSS 크기만 변하고 캔버스 내부 해상도(width/height 속성)는 300 고정이라 스케일링은 브라우저가 처리함
+        ctx.clearRect(0, 0, size, size);
+        ctx.fillStyle = isClockInteractive ? "#fff" : "#f5f5f5";
+        ctx.beginPath(); ctx.arc(center, center, radius, 0, 2*Math.PI); ctx.fill();
+        ctx.lineWidth = 8; ctx.strokeStyle = "#8d6e63"; ctx.stroke();
+        
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillStyle = '#333';
+        for(let i=1; i<=12; i++) {
+            const angle = (i * 30) * Math.PI / 180;
+            const x = center + (radius - 35) * Math.sin(angle);
+            const y = center - (radius - 35) * Math.cos(angle);
+            ctx.font = 'bold 24px Jua'; ctx.fillText(i, x, y);
+            const tx = center + (radius - 12) * Math.sin(angle);
+            const ty = center - (radius - 12) * Math.cos(angle);
+            ctx.beginPath(); ctx.arc(tx, ty, 4, 0, 2*Math.PI); ctx.fillStyle='#555'; ctx.fill();
+        }
+        for(let i=0; i<60; i++) {
+            if(i%5!==0) {
+                const a = (i*6)*Math.PI/180;
+                const tx = center + (radius - 12) * Math.sin(a);
+                const ty = center - (radius - 12) * Math.cos(a);
+                ctx.beginPath(); ctx.arc(tx, ty, 2, 0, 2*Math.PI); ctx.fillStyle='#ccc'; ctx.fill();
+            }
+        }
+        const normM = currentClockMinutes % 720;
+        const mA = (normM % 60) * 6 * Math.PI / 180;
+        const hA = (normM * 0.5) * Math.PI / 180;
+        drawHand(hA, radius*0.55, 10, '#3e2723');
+        drawHand(mA, radius*0.8, 6, '#c62828');
+        ctx.beginPath(); ctx.arc(center, center, 8, 0, 2*Math.PI); ctx.fillStyle='#3e2723'; ctx.fill();
+    }
+    function drawHand(angle, length, width, color) {
+        ctx.beginPath(); ctx.lineWidth = width; ctx.lineCap = "round"; ctx.strokeStyle = color;
+        ctx.moveTo(center, center);
+        ctx.lineTo(center + length * Math.sin(angle), center - length * Math.cos(angle));
+        ctx.stroke();
+    }
+    function getAngle(e) {
+        const rect = canvas.getBoundingClientRect();
+        const cx = e.touches ? e.touches[0].clientX : e.clientX;
+        const cy = e.touches ? e.touches[0].clientY : e.clientY;
+        const x = cx - rect.left - rect.width/2; // 중심점 계산 수정
+        const y = cy - rect.top - rect.height/2; // 중심점 계산 수정
+        let a = Math.atan2(y, x) + Math.PI/2;
+        if (a < 0) a += Math.PI * 2;
+        return a;
+    }
+    let lastA = 0;
+    function startDrag(e) { if(!isClockInteractive) return; isDragging = true; lastA = getAngle(e); e.preventDefault(); }
+    function onDrag(e) {
+        if(!isDragging || !isClockInteractive) return; e.preventDefault();
+        const curA = getAngle(e); let delta = curA - lastA;
+        if(delta > Math.PI) delta -= 2*Math.PI; if(delta < -Math.PI) delta += 2*Math.PI;
+        currentClockMinutes += (delta / (2*Math.PI)) * 60;
+        if(currentClockMinutes < 0) currentClockMinutes += 720;
+        lastA = curA; drawClock();
+    }
+    function endDrag() { if(!isDragging) return; isDragging = false; currentClockMinutes = Math.round(currentClockMinutes); drawClock(); }
+    
+    canvas.addEventListener('mousedown', startDrag);
+    window.addEventListener('mousemove', onDrag);
+    window.addEventListener('mouseup', endDrag);
+    canvas.addEventListener('touchstart', startDrag, {passive:false});
+    window.addEventListener('touchmove', onDrag, {passive:false});
+    window.addEventListener('touchend', endDrag);
+
+    function showScreen(id) { document.querySelectorAll('.screen').forEach(s => s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+    function openHelp() { document.getElementById('modal-help').style.display = 'flex'; }
+    function closeHelp() { document.getElementById('modal-help').style.display = 'none'; }
+    
+    drawClock();
+</script>
+</body>
+</html>
